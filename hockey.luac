@@ -10,22 +10,76 @@
     - Mac OS X (all users):  VLC.app/Contents/MacOS/share/lua/sd/  
 --]]
 require "simplexml"
+
+API_USERNAME="rhockeyvlc"
  
 function descriptor()
     return { title="/r/hockey" }
 end
- 
+
+local function get_date_parts(date_str)
+  _,_,y,m,d,h,M,s=string.find(date_str, "(%d+)-(%d+)-(%d+) (%d+):(%d+):(%d+)")
+  return {year=tonumber(y),month=tonumber(m),day=tonumber(d),hour=tonumber(h),min=tonumber(M),sec=tonumber(s)}
+end
+
+local function get_et_date()
+    local et_time_xml = simplexml.parse_url("http://api.geonames.org/timezone?lat=40.67&lng=-73.94&username=" .. API_USERNAME)
+    local et_date = nil
+    for _, child in ipairs( et_time_xml.children ) do
+        if (child.name == "timezone") then
+            for _, subchild in ipairs( child.children ) do
+                if (subchild.name == "time") then
+                    et_date = subchild.children[1] .. ":00"
+                end
+            end
+        end
+    end
+    return et_date
+end
+
+local function get_et_diff()
+    local status, et_date = pcall(get_et_date)
+    if (status == false or et_date == nil) then
+        vlc.msg.warn("Couldn't get ET time, showing default times: " .. et_date)
+        return nil
+    end
+    local local_time = os.time()
+    local et_time = os.time(get_date_parts(et_date))
+    return os.difftime(local_time, et_time)
+end
+
+local function get_timezone()
+    local time = os.time()
+    local utcdate   = os.date("!*t", time)
+    local localdate = os.date("*t", time)
+    localdate.isdst = false -- this is the trick
+    local time_diff = os.difftime(os.time(localdate), os.time(utcdate))
+    local h, m = math.modf(time_diff / 3600)
+    return string.format("%+.4d", 100 * h + 60 * m)
+end
+
+local function convert_to_local(date, diff, tz)
+    if (diff == nil) then
+        return date .. " ET"
+    end
+    local time = os.time(get_date_parts(date))
+    local local_time = time + diff;
+    return os.date("%Y-%m-%d %H:%M " .. tz, local_time)
+end
+
 function main()
+    local et_diff = get_et_diff()
+    local timezone = get_timezone()
     local quality = {400, 800, 1600, 3000, 4500}
     local games = simplexml.parse_url("http://208.92.36.37/nlds/as3/get_games.php?client=nhl&playerclient=hop")
     for _, game in ipairs( games.children ) do      
         if(game.name == "game") then           
                 simplexml.add_name_maps( game )
-                local game_date = game.attributes["game_date"]
+                local game_date = convert_to_local(game.attributes["game_date"], et_diff, timezone)
                 local home_team = game.children_map['home_team'][1].children[1]
                 local away_team = game.children_map['away_team'][1].children[1]
                 local title = game_date .. " " .. away_team .. " @ " .. home_team
-            local node = vlc.sd.add_node( { path = "", title = title } )            
+                local node = vlc.sd.add_node( { path = "", title = title } )            
                 for _, ass in ipairs(game.children_map['assignments'][1].children) do
                         local feed = ass.attributes["feed_display_name"]
                 local feed_title = home_team
