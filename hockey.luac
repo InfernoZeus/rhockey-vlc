@@ -70,10 +70,10 @@ end
 function main()
     local et_diff = get_et_diff()
     local timezone = get_timezone()
-    local quality = {400, 800, 1600, 3000, 4500}
+    local quality = {400, 800, 1200, 1600, 2400, 3000, 4500}
     local games = simplexml.parse_url("http://208.92.36.37/nlds/as3/get_games.php?client=nhl&playerclient=hop")
-    for _, game in ipairs( games.children ) do      
-        if(game.name == "game") then           
+    for _, game in ipairs( games.children ) do              
+        if(game.name == "game") then
                 simplexml.add_name_maps( game )
                 local game_date = convert_to_local(game.attributes["game_date"], et_diff, timezone)
                 local home_team = game.children_map['home_team'][1].children[1]
@@ -86,13 +86,13 @@ function main()
                 if(feed == "away") then
                     feed_title = away_team
                 end
-                local feed_node = node:add_node({title = feed_title})
-                        local ipad = ass.children_map['ipad_url'][1].children[1]
+                local feed_node = node:add_subnode({title = feed_title})                
+                local ipad = ass.children_map['ipad_url'][1].children[1]
                 for _, q in ipairs(quality) do
                     local url = string.gsub(ipad, "ipad", q)
-                    feed_node:add_subitem({path = url, title = q})
+                    feed_node:add_subitem({path = url, title = q .. ' kbps'})
                 end
-                end
+            end
         end
     end
 end
