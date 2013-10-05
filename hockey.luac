@@ -59,12 +59,12 @@ local function get_timezone()
 end
 
 local function convert_to_local(date, diff, tz)
-    if (diff == nil) then
-        return date .. " ET"
-    end
     local time = os.time(get_date_parts(date))
+    if (diff == nil) then
+        return os.date("%H:%M ET", time)
+    end
     local local_time = time + diff;
-    return os.date("%Y-%m-%d %H:%M " .. tz, local_time)
+    return os.date("%H:%M", local_time)
 end
 
 function main()
@@ -78,7 +78,7 @@ function main()
                 local game_date = convert_to_local(game.attributes["game_date"], et_diff, timezone)
                 local home_team = game.children_map['home_team'][1].children[1]
                 local away_team = game.children_map['away_team'][1].children[1]
-                local title = game_date .. " " .. away_team .. " @ " .. home_team
+                local title = away_team .. " @ " .. home_team .. " - " .. game_date
                 local node = vlc.sd.add_node( { path = "", title = title } )            
                 for _, ass in ipairs(game.children_map['assignments'][1].children) do
                 local feed = ass.attributes["feed_display_name"]
