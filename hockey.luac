@@ -78,7 +78,7 @@ function main()
             local game_date = convert_to_local(game.attributes["game_date"], et_diff, timezone)
             local home_team = game.children_map['home_team'][1].children[1]
             local away_team = game.children_map['away_team'][1].children[1]
-            local title = away_team .. " @ " .. home_team .. " - " .. game_date
+            local title = game_date .. " - " .. away_team .. " @ " .. home_team
             local node = vlc.sd.add_node( { path = "", title = title } )            
             for _, ass in ipairs(game.children_map['assignments'][1].children) do
                 local feed = ass.attributes["feed_display_name"]
