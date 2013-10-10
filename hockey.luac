@@ -94,7 +94,7 @@ function main()
                         path = url,
                         title = q .. ' kbps',
                         options = {
-                            "http-user-agent=iPhone"
+                            "http-user-agent=AppleCoreMedia/1.0.0.8C148 (iPad; U; CPU OS 4_2_1 like Mac OS X; en_us)"
                         }
                     })
                 end
