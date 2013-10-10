@@ -20,20 +20,20 @@ function main()
     local games = simplexml.parse_url("http://208.92.36.37/nlds/as3/get_games.php?client=nhl&playerclient=hop")
     for _, game in ipairs( games.children ) do      
         if(game.name == "game") then           
-                simplexml.add_name_maps( game )
-                local game_date = game.attributes["game_date"]
-                local home_team = game.children_map['home_team'][1].children[1]
-                local away_team = game.children_map['away_team'][1].children[1]
-                local title = game_date .. " " .. away_team .. " @ " .. home_team
+            simplexml.add_name_maps( game )
+            local game_date = game.attributes["game_date"]
+            local home_team = game.children_map['home_team'][1].children[1]
+            local away_team = game.children_map['away_team'][1].children[1]
+            local title = game_date .. " " .. away_team .. " @ " .. home_team
             local node = vlc.sd.add_node( { path = "", title = title } )            
-                for _, ass in ipairs(game.children_map['assignments'][1].children) do
-                        local feed = ass.attributes["feed_display_name"]
+            for _, ass in ipairs(game.children_map['assignments'][1].children) do
+                local feed = ass.attributes["feed_display_name"]
                 local feed_title = home_team
                 if(feed == "away") then
                     feed_title = away_team
                 end
                 local feed_node = node:add_node({title = feed_title})
-                        local ipad = ass.children_map['ipad_url'][1].children[1]
+                local ipad = ass.children_map['ipad_url'][1].children[1]
                 for _, q in ipairs(quality) do
                     local url = string.gsub(ipad, "ipad", q)
                     feed_node:add_subitem({
