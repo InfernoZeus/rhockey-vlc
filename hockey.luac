@@ -10,13 +10,13 @@
     - Mac OS X (all users):  VLC.app/Contents/MacOS/share/lua/sd/  
 --]]
 require "simplexml"
-
+ 
 API_USERNAME="rhockeyvlc"
  
 function descriptor()
     return { title="/r/hockey" }
 end
-
+ 
 local function get_date_parts(date_str)
   _,_,y,m,d,h,M,s=string.find(date_str, "(%d+)-(%d+)-(%d+) (%d+):(%d+):(%d+)")
   return {year=tonumber(y),month=tonumber(m),day=tonumber(d),hour=tonumber(h),min=tonumber(M),sec=tonumber(s)}
@@ -73,32 +73,74 @@ function main()
     local quality = {400, 800, 1200, 1600, 2400, 3000, 4500}
     local games = simplexml.parse_url("http://208.92.36.37/nlds/as3/get_games.php?client=nhl&playerclient=hop")
     for _, game in ipairs( games.children ) do              
-        if(game.name == "game") then
+        if(game.name == "game") then           
             simplexml.add_name_maps( game )
             local game_date = convert_to_local(game.attributes["game_date"], et_diff, timezone)
-            local home_team = game.children_map['home_team'][1].children[1]
-            local away_team = game.children_map['away_team'][1].children[1]
+            local home_team = full_name(game.children_map['home_team'][1].children[1])
+            local away_team = full_name(game.children_map['away_team'][1].children[1])
             local title = game_date .. " - " .. away_team .. " @ " .. home_team
-            local node = vlc.sd.add_node( { path = "", title = title } )            
-            for _, ass in ipairs(game.children_map['assignments'][1].children) do
-                local feed = ass.attributes["feed_display_name"]
-                local feed_title = home_team
-                if(feed == "away") then
-                    feed_title = away_team
-                end
-                local feed_node = node:add_node({title = feed_title})
-                local ipad = ass.children_map['ipad_url'][1].children[1]
-                for _, q in ipairs(quality) do
-                    local url = string.gsub(ipad, "ipad", q)
-                    feed_node:add_subitem({
-                        path = url,
-                        title = q .. ' kbps',
-                        options = {
-                            "http-user-agent=AppleCoreMedia/1.0.0.8C148 (iPad; U; CPU OS 4_2_1 like Mac OS X; en_us)"
-                        }
-                    })
+            if not string.find(home_team,"^T%d%d$") and not string.find (away_team,"^T%d%d$") then
+                local node = vlc.sd.add_node( { path = "", title = title } )
+                for _, ass in ipairs(game.children_map['assignments'][1].children) do
+                    local feed = ass.attributes["feed_display_name"]
+                    local feed_title = home_team
+                    if(feed == "away") then
+                        feed_title = away_team
+                    end
+                    local feed_node = node:add_node({ title = feed_title })
+                    local ipad = ass.children_map['ipad_url'][1].children[1]
+                    for _, q in ipairs(quality) do
+                        local url = string.gsub(ipad, "ipad", q)
+                        feed_node:add_subitem({
+                            path = url,
+                            title = q .. ' kbps',
+                            options = {
+                                "http-user-agent=AppleCoreMedia/1.0.0.8C148 (iPad; U; CPU OS 4_2_1 like Mac OS X; en_us)"
+                            }
+                        })
+                    end
                 end
             end
         end
     end
+end
+
+function full_name(abr)
+    local all_names = {
+        BOS = "Boston Bruins",
+        BUF = "Buffalo Sabres",
+        CGY = "Calgary Flames",
+        CHI = "Chicago Blackhawks",
+        DET = "Detroit Red Wings",
+        EDM = "Edmonton Oilers",
+        CAR = "Carolina Hurricanes",
+        LOS = "Los Angeles Kings",
+        MON = "Montreal Canadiens",
+        DAL = "Dallas Stars",
+        NJD = "New Jersey Devils",
+        NYI = "New York Islanders",
+        NYR = "New York Rangers",
+        PHI = "Philadelphia Flyers",
+        PIT = "Pittsburgh Penguins",
+        COL = "Colorado Avalanche",
+        STL = "St. Louis Blues",
+        TOR = "Toronto Maple Leafs",
+        VAN = "Vancouver Canucks",
+        WSH = "Washington Capitals",
+        PHX = "Phoenix Coyotes",
+        SAN = "San Jose Sharks",
+        OTT = "Ottawa Senators",
+        TAM = "Tampa Bay Lightning",
+        ANA = "Anaheim Ducks",
+        FLA = "Florida Panthers",
+        CMB = "Columbus Blue Jackets",
+        MIN = "Minnesota Wild",
+        NSH = "Nashville Predators",
+        WPG = "Winnipeg Jets"
+    }
+    local name = all_names[abr]
+    if name == nil then
+        name = abr
+    end
+    return(name)
 end
