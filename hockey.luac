@@ -8,7 +8,7 @@
     - Linux (all users):     /usr/share/vlc/lua/sd/
     - Linux (current user):  ~/.local/share/vlc/lua/sd/
     - Mac OS X (all users):  VLC.app/Contents/MacOS/share/lua/sd/  
---]]
+    --]]
 require "simplexml"
  
 API_USERNAME="rhockeyvlc"
@@ -70,37 +70,58 @@ end
 function main()
     local et_diff = get_et_diff()
     local timezone = get_timezone()
-    local quality = {400, 800, 1200, 1600, 2400, 3000, 4500}
     local games = simplexml.parse_url("http://208.92.36.37/nlds/as3/get_games.php?client=nhl&playerclient=hop")
+    local test_games = {}
     for _, game in ipairs( games.children ) do              
         if(game.name == "game") then           
             simplexml.add_name_maps( game )
-            local game_date = convert_to_local(game.attributes["game_date"], et_diff, timezone)
-            local home_team = full_name(game.children_map['home_team'][1].children[1])
-            local away_team = full_name(game.children_map['away_team'][1].children[1])
-            local title = game_date .. " - " .. away_team .. " @ " .. home_team
-            if not string.find(home_team,"^T%d%d$") and not string.find (away_team,"^T%d%d$") then
+            local game_date, home_team, away_team, title = getInfoForGame(game, et_diff, timezone)
+            if string.find(home_team,"^T%d+$") or string.find (away_team,"^T%d+$") then
+                table.insert(test_games, game)
+            else
                 local node = vlc.sd.add_node( { path = "", title = title } )
-                for _, ass in ipairs(game.children_map['assignments'][1].children) do
-                    local feed = ass.attributes["feed_display_name"]
-                    local feed_title = home_team
-                    if(feed == "away") then
-                        feed_title = away_team
-                    end
-                    local feed_node = node:add_node({ title = feed_title })
-                    local ipad = ass.children_map['ipad_url'][1].children[1]
-                    for _, q in ipairs(quality) do
-                        local url = string.gsub(ipad, "ipad", q)
-                        feed_node:add_subitem({
-                            path = url,
-                            title = q .. ' kbps',
-                            options = {
-                                "http-user-agent=AppleCoreMedia/1.0.0.8C148 (iPad; U; CPU OS 4_2_1 like Mac OS X; en_us)"
-                            }
-                        })
-                    end
-                end
+                addNodeForGame(node, game, home_team, away_team)
             end
+        end
+    end
+
+    if table.getn(test_games) > 0 then
+        local test_node = vlc.sd.add_node( { path = "", title = "Test Streams" } )
+        for _, game in ipairs(test_games) do
+            local game_date, home_team, away_team, title = getInfoForGame(game, et_diff, timezone)
+            node = test_node:add_node({ title = title })
+            addNodeForGame(node, game, home_team, away_team)
+        end
+    end
+end
+
+function getInfoForGame(game, et_diff, timezone)
+    local game_date = convert_to_local(game.attributes["game_date"], et_diff, timezone)
+    local home_team = full_name(game.children_map['home_team'][1].children[1])
+    local away_team = full_name(game.children_map['away_team'][1].children[1])
+    local title = game_date .. " - " .. away_team .. " @ " .. home_team
+    return game_date, home_team, away_team, title
+end
+
+function addNodeForGame(parentNode, game, home_team, away_team)
+    local quality = {400, 800, 1200, 1600, 2400, 3000, 4500}
+    for _, ass in ipairs(game.children_map['assignments'][1].children) do
+        local feed = ass.attributes["feed_display_name"]
+        local feed_title = home_team
+        if(feed == "away") then
+            feed_title = away_team
+        end
+        local feed_node = parentNode:add_node({ title = feed_title })
+        local ipad = ass.children_map['ipad_url'][1].children[1]
+        for _, q in ipairs(quality) do
+            local url = string.gsub(ipad, "ipad", q)
+            feed_node:add_subitem({
+                path = url,
+                title = q .. ' kbps',
+                options = {
+                    "http-user-agent=AppleCoreMedia/1.0.0.8C148 (iPad; U; CPU OS 4_2_1 like Mac OS X; en_us)"
+                }
+            })
         end
     end
 end
