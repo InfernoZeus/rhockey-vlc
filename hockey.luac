@@ -14,6 +14,8 @@ require "simplexml"
 API_USERNAME="rhockeyvlc"
 
 USER_AGENT="iTunes-AppleTV/4.1"
+--Alternative User-Agents:
+-- Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.2; Trident/6.0; Xbox; Xbox One)
  
 function descriptor()
     return { title="/r/hockey" }
@@ -124,6 +126,7 @@ function addNodeForGame(parentNode, game, home_team, away_team)
         end
         local feed_node = parentNode:add_subnode({ title = feed_title })
         local ipad = ass.children_map['ipad_url'][1].children[1]
+        if(ipad ~= nil) then
         for _, q in ipairs(quality) do
             local url = string.gsub(ipad, "ipad", q)
             feed_node:add_subitem({
@@ -132,6 +135,11 @@ function addNodeForGame(parentNode, game, home_team, away_team)
                 options = {
                     "http-user-agent=" .. USER_AGENT
                 }
+            })
+        end
+        else
+            feed_node:add_subnode({
+                title = "No stream available yet."
             })
         end
     end
@@ -146,8 +154,8 @@ function full_name(abr)
         DET = "Detroit Red Wings",
         EDM = "Edmonton Oilers",
         CAR = "Carolina Hurricanes",
-        LOS = "Los Angeles Kings",
-        MON = "Montreal Canadiens",
+        LAK = "Los Angeles Kings",
+        MTL = "Montreal Canadiens",
         DAL = "Dallas Stars",
         NJD = "New Jersey Devils",
         NYI = "New York Islanders",
@@ -160,12 +168,12 @@ function full_name(abr)
         VAN = "Vancouver Canucks",
         WSH = "Washington Capitals",
         PHX = "Phoenix Coyotes",
-        SAN = "San Jose Sharks",
+        SJS = "San Jose Sharks",
         OTT = "Ottawa Senators",
-        TAM = "Tampa Bay Lightning",
+        TBL = "Tampa Bay Lightning",
         ANA = "Anaheim Ducks",
         FLA = "Florida Panthers",
-        CMB = "Columbus Blue Jackets",
+        CBJ = "Columbus Blue Jackets",
         MIN = "Minnesota Wild",
         NSH = "Nashville Predators",
         WPG = "Winnipeg Jets"
