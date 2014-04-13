@@ -12,7 +12,7 @@
 require "simplexml"
 
 MILITARY_TIME=true
-SHOW_LOCAL_TIME=true
+SHOW_LOCAL_TIME=false
  
 API_USERNAME="rhockeyvlc"
 USER_AGENT="iTunes-AppleTV/4.1"
