@@ -49,7 +49,16 @@ local function get_et_diff()
     end
     local local_time = os.time()
     local et_time = os.time(get_date_parts(et_date))
-    return os.difftime(local_time, et_time)
+    local diff_seconds = os.difftime(local_time, et_time)
+
+    -- Round to closest 5mins
+    local excess = diff_seconds % 300
+    if (excess < 150) then
+        diff_seconds = diff_seconds - excess
+    else
+        diff_seconds = diff_seconds + (300 - excess)
+    end
+    return diff_seconds
 end
 
 local function get_timezone()
