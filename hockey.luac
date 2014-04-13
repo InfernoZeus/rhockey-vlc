@@ -10,9 +10,11 @@
     - Mac OS X (all users):  VLC.app/Contents/MacOS/share/lua/sd/  
     --]]
 require "simplexml"
+
+MILITARY_TIME=true
+SHOW_LOCAL_TIME=true
  
 API_USERNAME="rhockeyvlc"
-MILITARY_TIME=true
 USER_AGENT="iTunes-AppleTV/4.1"
 --Alternative User-Agents:
 -- Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.2; Trident/6.0; Xbox; Xbox One)
@@ -42,6 +44,10 @@ local function get_et_date()
 end
 
 local function get_et_diff()
+    if not SHOW_LOCAL_TIME then
+        return nil
+    end
+
     local status, et_date = pcall(get_et_date)
     if (status == false or et_date == nil) then
         vlc.msg.warn("Couldn't get ET time, showing default times: " .. et_date)
@@ -63,6 +69,10 @@ end
 
 local function convert_to_local(date, diff)
     local time, local_time, local_date
+
+    if diff == nil then
+        diff = 0
+    end
 
     time = os.time(get_date_parts(date))
     local_time = time + diff;    
