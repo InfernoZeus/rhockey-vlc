@@ -11,19 +11,108 @@
     --]]
 require "simplexml"
 
+MILITARY_TIME=true
+SHOW_LOCAL_TIME=true
+ 
+API_USERNAME="rhockeyvlc"
 USER_AGENT="iTunes-AppleTV/4.1"
+--Alternative User-Agents:
+-- Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.2; Trident/6.0; Xbox; Xbox One)
  
 function descriptor()
     return { title="/r/hockey" }
 end
+ 
+local function get_date_parts(date_str)
+  _,_,y,m,d,h,M,s=string.find(date_str, "(%d+)-(%d+)-(%d+) (%d+):(%d+):(%d+)")
+  return {year=tonumber(y),month=tonumber(m),day=tonumber(d),hour=tonumber(h),min=tonumber(M),sec=tonumber(s)}
+end
+
+local function get_et_date()
+    local et_time_xml = simplexml.parse_url("http://api.geonames.org/timezone?lat=40.67&lng=-73.94&username=" .. API_USERNAME)
+    local et_date = nil
+    for _, child in ipairs( et_time_xml.children ) do
+        if (child.name == "timezone") then
+            for _, subchild in ipairs( child.children ) do
+                if (subchild.name == "time") then
+                    et_date = subchild.children[1] .. ":00"
+                end
+            end
+        end
+    end
+    return et_date
+end
+
+local function get_et_diff()
+    if not SHOW_LOCAL_TIME then
+        return nil
+    end
+
+    local status, et_date = pcall(get_et_date)
+    if (status == false or et_date == nil) then
+        vlc.msg.warn("Couldn't get ET time, showing default times: " .. et_date)
+        return nil
+    end
+    local local_time = os.time()
+    local et_time = os.time(get_date_parts(et_date))
+    local diff_seconds = os.difftime(local_time, et_time)
+
+    -- Round to closest 5mins
+    local excess = diff_seconds % 300
+    if (excess < 150) then
+        diff_seconds = diff_seconds - excess
+    else
+        diff_seconds = diff_seconds + (300 - excess)
+    end
+    return diff_seconds
+end
+
+local function convert_to_local(date, diff)
+    local time, local_time, local_date
+
+    if diff == nil then
+        diff = 0
+    end
+
+    time = os.time(get_date_parts(date))
+    local_time = time + diff;    
+    local_date = os.date(time_display_format, local_time)
+
+    -- Strip leading zero from 12 hour format
+    if not MILITARY_TIME then
+        local_date = local_date:gsub("^0", "")
+    end
+    return local_date
+end
+
+local function set_time_display_format(diff)
+    if MILITARY_TIME then
+        time_display_format = "%H:%M"
+    else
+        time_display_format = "%I:%M %p"
+    end
+    if (diff == nil) then
+        time_display_format = time_display_format .. " ET"
+    end
+end
+
+local function convert_game_time_string_to_date(game_time)
+    _,_,y,m,d,h,M,period=string.find(game_time, "(%d+)-(%d+)-(%d+) (%d+):(%d+) ([ap]m)")
+    if (period == "pm" and h ~= "12") then
+        h = h + 12
+    end
+    return string.format("%d-%d-%d %d:%d:%d", y, m, d, h, M, 0)
+end
 
 function main()
+    local et_diff = get_et_diff()
+    set_time_display_format(et_diff)
     local games = simplexml.parse_url("http://atombytes.nu/nhl_games.php?client=nhl&playerclient=hop")
     local test_games = {}
     for _, game in ipairs( games.children ) do              
         if(game.name == "game") then           
             simplexml.add_name_maps( game )
-            local game_date, home_team, away_team, title = getInfoForGame(game)
+            local game_date, home_team, away_team, title = getInfoForGame(game, et_diff)
             if string.find(home_team,"^T%d+$") or string.find (away_team,"^T%d+$") then
                 table.insert(test_games, game)
             else
@@ -36,19 +125,20 @@ function main()
     if table.getn(test_games) > 0 then
         local test_node = vlc.sd.add_node( { path = "", title = "Test Streams" } )
         for _, game in ipairs(test_games) do
-            local game_date, home_team, away_team, title = getInfoForGame(game)
+            local game_date, home_team, away_team, title = getInfoForGame(game, et_diff)
             node = test_node:add_subnode({ title = title })
             addNodeForGame(node, game, home_team, away_team)
         end
     end
 end
 
-function getInfoForGame(game)
-    local game_date = game.attributes["game_date"]
+function getInfoForGame(game, et_diff)
+    local game_date = convert_game_time_string_to_date(game.attributes["game_date"])
+    local local_game_date = convert_to_local(game_date, et_diff)
     local home_team = full_name(game.children_map['home_team'][1].children[1])
     local away_team = full_name(game.children_map['away_team'][1].children[1])
-    local title = game_date .. " - " .. away_team .. " @ " .. home_team
-    return game_date, home_team, away_team, title
+    local title = local_game_date .. " - " .. away_team .. " @ " .. home_team
+    return local_game_date, home_team, away_team, title
 end
 
 function addNodeForGame(parentNode, game, home_team, away_team)
@@ -61,14 +151,20 @@ function addNodeForGame(parentNode, game, home_team, away_team)
         end
         local feed_node = parentNode:add_subnode({ title = feed_title })
         local ipad = ass.children_map['ipad_url'][1].children[1]
-        for _, q in ipairs(quality) do
-            local url = string.gsub(ipad, "ipad", q)
-            feed_node:add_subitem({
-                path = url,
-                title = q .. ' kbps',
-                options = {
-                    "http-user-agent=" .. USER_AGENT
-                }
+        if(ipad ~= nil) then
+            for _, q in ipairs(quality) do
+                local url = string.gsub(ipad, "ipad", q)
+                feed_node:add_subitem({
+                    path = url,
+                    title = q .. ' kbps',
+                    options = {
+                        "http-user-agent=" .. USER_AGENT
+                    }
+                })
+            end
+        else
+            feed_node:add_subnode({
+                title = "No stream available yet."
             })
         end
     end
@@ -83,8 +179,8 @@ function full_name(abr)
         DET = "Detroit Red Wings",
         EDM = "Edmonton Oilers",
         CAR = "Carolina Hurricanes",
-        LOS = "Los Angeles Kings",
-        MON = "Montreal Canadiens",
+        LAK = "Los Angeles Kings",
+        MTL = "Montreal Canadiens",
         DAL = "Dallas Stars",
         NJD = "New Jersey Devils",
         NYI = "New York Islanders",
@@ -97,12 +193,12 @@ function full_name(abr)
         VAN = "Vancouver Canucks",
         WSH = "Washington Capitals",
         PHX = "Phoenix Coyotes",
-        SAN = "San Jose Sharks",
+        SJS = "San Jose Sharks",
         OTT = "Ottawa Senators",
-        TAM = "Tampa Bay Lightning",
+        TBL = "Tampa Bay Lightning",
         ANA = "Anaheim Ducks",
         FLA = "Florida Panthers",
-        CMB = "Columbus Blue Jackets",
+        CBJ = "Columbus Blue Jackets",
         MIN = "Minnesota Wild",
         NSH = "Nashville Predators",
         WPG = "Winnipeg Jets"
