@@ -12,7 +12,7 @@
 require "simplexml"
  
 API_USERNAME="rhockeyvlc"
-
+MILITARY_TIME=true
 USER_AGENT="iTunes-AppleTV/4.1"
 --Alternative User-Agents:
 -- Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.2; Trident/6.0; Xbox; Xbox One)
@@ -62,13 +62,28 @@ local function get_et_diff()
 end
 
 local function convert_to_local(date, diff)
-    local time = os.time(get_date_parts(date))
-    if (diff == nil) then
-        return os.date("%H:%M ET", time)
+    local time, local_time, local_date
+
+    time = os.time(get_date_parts(date))
+    local_time = time + diff;    
+    local_date = os.date(time_display_format, local_time)
+
+    -- Strip leading zero from 12 hour format
+    if not MILITARY_TIME then
+        local_date = local_date:gsub("^0", "")
     end
-    local local_time = time + diff;
-    local local_date = os.date("%H:%M", local_time)
     return local_date
+end
+
+local function set_time_display_format(diff)
+    if MILITARY_TIME then
+        time_display_format = "%H:%M"
+    else
+        time_display_format = "%I:%M %p"
+    end
+    if (diff == nil) then
+        time_display_format = time_display_format .. " ET"
+    end
 end
 
 local function convert_game_time_string_to_date(game_time)
@@ -81,6 +96,7 @@ end
 
 function main()
     local et_diff = get_et_diff()
+    set_time_display_format(et_diff)
     local games = simplexml.parse_url("http://atombytes.nu/nhl_games.php?client=nhl&playerclient=hop")
     local test_games = {}
     for _, game in ipairs( games.children ) do              
