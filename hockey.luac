@@ -109,6 +109,12 @@ function main()
     set_time_display_format(et_diff)
     local games = simplexml.parse_url("http://atombytes.nu/nhl_games.php?client=nhl&playerclient=hop")
     local test_games = {}
+
+    if table.getn(games) == 0 then
+        vlc.sd.add_node({path="", title="No games today."})
+        return
+    end
+
     for _, game in ipairs( games.children ) do              
         if(game.name == "game") then           
             simplexml.add_name_maps( game )
