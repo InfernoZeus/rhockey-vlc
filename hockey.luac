@@ -1,28 +1,28 @@
 --[[
   DISCLAIMER: SCRIPT IS PROVIDED AS IS USE AT YOUR OWN RISK!
- 
+
   Save this script as "hockey.lua"
   Place this script in:
     - Windows (all users):   %ProgramFiles%\VideoLAN\VLC\lua\sd\
     - Windows (current user):   %APPDATA%\VLC\lua\sd\
     - Linux (all users):     /usr/share/vlc/lua/sd/
     - Linux (current user):  ~/.local/share/vlc/lua/sd/
-    - Mac OS X (all users):  VLC.app/Contents/MacOS/share/lua/sd/  
+    - Mac OS X (all users):  VLC.app/Contents/MacOS/share/lua/sd/
     --]]
 require "simplexml"
 
 MILITARY_TIME=true
 SHOW_LOCAL_TIME=true
- 
+
 API_USERNAME="rhockeyvlc"
 USER_AGENT="iTunes-AppleTV/4.1"
 --Alternative User-Agents:
 -- Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.2; Trident/6.0; Xbox; Xbox One)
- 
+
 function descriptor()
     return { title="/r/hockey" }
 end
- 
+
 local function get_date_parts(date_str)
   _,_,y,m,d,h,M,s=string.find(date_str, "(%d+)-(%d+)-(%d+) (%d+):(%d+):(%d+)")
   return {year=tonumber(y),month=tonumber(m),day=tonumber(d),hour=tonumber(h),min=tonumber(M),sec=tonumber(s)}
@@ -75,7 +75,7 @@ local function convert_to_local(date, diff)
     end
 
     time = os.time(get_date_parts(date))
-    local_time = time + diff;    
+    local_time = time + diff;
     local_date = os.date(time_display_format, local_time)
 
     -- Strip leading zero from 12 hour format
@@ -110,13 +110,13 @@ function main()
     local games = simplexml.parse_url("http://atombytes.nu/nhl_games.php?client=nhl&playerclient=hop")
     local test_games = {}
 
-    if table.getn(games) == 0 then
+    if table.getn(games.children) == 0 then
         vlc.sd.add_node({path="", title="No games today."})
         return
     end
 
-    for _, game in ipairs( games.children ) do              
-        if(game.name == "game") then           
+    for _, game in ipairs( games.children ) do
+        if(game.name == "game") then
             simplexml.add_name_maps( game )
             local game_date, home_team, away_team, title = getInfoForGame(game, et_diff)
             if string.find(home_team,"^T%d+$") or string.find (away_team,"^T%d+$") then
