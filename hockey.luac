@@ -18,6 +18,7 @@ API_USERNAME="rhockeyvlc"
 USER_AGENT="iTunes-AppleTV/4.1"
 --Alternative User-Agents:
 -- Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.2; Trident/6.0; Xbox; Xbox One)
+-- PS4 libhttp/1.62 (PlayStation 4)
 
 function descriptor()
     return { title="/r/hockey" }
