@@ -108,7 +108,7 @@ end
 function main()
     local et_diff = get_et_diff()
     set_time_display_format(et_diff)
-    local games = simplexml.parse_url("http://atombytes.nu/nhl_games.php?client=nhl&playerclient=hop")
+    local games = simplexml.parse_url("http://breadwinka.com/get_games.php?client=nhl&playerclient=hop")
     local test_games = {}
 
     if table.getn(games.children) == 0 then
