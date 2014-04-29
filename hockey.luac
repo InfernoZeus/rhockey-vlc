@@ -15,10 +15,10 @@ MILITARY_TIME=true
 SHOW_LOCAL_TIME=false
 
 API_USERNAME="rhockeyvlc"
-USER_AGENT="iTunes-AppleTV/4.1"
+USER_AGENT="PS4 libhttp/1.62 (PlayStation 4)"
 --Alternative User-Agents:
--- Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.2; Trident/6.0; Xbox; Xbox One)
--- PS4 libhttp/1.62 (PlayStation 4)
+-- USER_AGENT="Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.2; Trident/6.0; Xbox; Xbox One)"
+-- USER_AGENT="iTunes-AppleTV/4.1"
 
 function descriptor()
     return { title="/r/hockey" }
@@ -108,7 +108,7 @@ end
 function main()
     local et_diff = get_et_diff()
     set_time_display_format(et_diff)
-    local games = simplexml.parse_url("http://atombytes.nu/nhl_games.php?client=nhl&playerclient=hop")
+    local games = simplexml.parse_url("http://breadwinka.com/get_games.php?client=nhl&playerclient=hop")
     local test_games = {}
 
     if table.getn(games.children) == 0 then
