@@ -158,7 +158,7 @@ function addNodeForGame(parentNode, game, home_team, away_team)
         end
         local feed_node = parentNode:add_subnode({ title = feed_title })
         local ipad = ass.children_map['ipad_url'][1].children[1]
-        if(ipad ~= nil) then
+        if(ipad ~= nil and ipad ~= "nil") then
             for _, q in ipairs(quality) do
                 local url = string.gsub(ipad, "ipad", q)
                 feed_node:add_subitem({
