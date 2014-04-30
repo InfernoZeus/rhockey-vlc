@@ -107,13 +107,20 @@ local function convert_game_time_string_to_date(game_time)
     return string.format("%d-%d-%d %d:%d:%d", y, m, d, h, M, 0)
 end
 
+function get_feed_date()
+    -- Calculate date for -10:00
+    local timestamp = os.time()
+    local format = "!%Y%m%d"
+    local tzoffset = -36000
+    return os.date(format, timestamp + tzoffset)
+end
+
 
 function main()
     local et_diff = get_et_diff()
     set_time_display_format(et_diff)
 
-    local dd = os.date('%Y%m%d')
-    local games = simplexml.parse_url("http://feeds.cdnak.neulion.com/fs/nhl/mobile/feeds/data/"..dd..".xml")
+    local games = simplexml.parse_url("http://feeds.cdnak.neulion.com/fs/nhl/mobile/feeds/data/"..get_feed_date()..".xml")
 
     local test_games = {}
 
