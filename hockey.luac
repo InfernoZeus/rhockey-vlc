@@ -114,6 +114,7 @@ function main()
 
     local dd = os.date('%Y%m%d')
     local games = simplexml.parse_url("http://feeds.cdnak.neulion.com/fs/nhl/mobile/feeds/data/"..dd..".xml")
+
     local test_games = {}
 
     if table.getn(games.children) == 0 then
@@ -122,11 +123,8 @@ function main()
     end
 
     for _, game in ipairs( games.children ) do
-
         if(game.name == "game") then
-
             simplexml.add_name_maps( game )
-
             local game_date, home_team, away_team, title = getInfoForGame(game, et_diff)
 
             if string.find(home_team,"^T%d+$") or string.find (away_team,"^T%d+$") then
@@ -177,26 +175,18 @@ function addNodeForGameOpponentType(parentNode, node, suffix)
 end
 
 function addNodeForGameOpponent(parentNode, node)
-
-    local has_feed = false
-
     if (node.children_map["live"] ~= nil) then
         addNodeForGameOpponentType(parentNode, node.children_map["live"][1].children[1], "Live")
-        has_feed = true
     end
 
     if (node.children_map["vod-condensed"] ~= nil) then
         addNodeForGameOpponentType(parentNode, node.children_map["vod-condensed"][1].children[1], "Condensed")
-        has_feed = true
     end
     if (node.children_map["vod-continuous"] ~= nil) then
         local url = string.gsub(node.children_map["vod-condensed"][1].children[1], "condensed", "continuous")
         addNodeForGameOpponentType(parentNode, url, "Continuous")
-        has_feed = true
     end
-    if (not has_feed) then
-        parentNode:add_subnode({title = "No stream available yet."})
-    end
+
 end
 
 function addNodeForGame(parentNode, game, home_team, away_team)
@@ -204,13 +194,19 @@ function addNodeForGame(parentNode, game, home_team, away_team)
     local home_feed_node = parentNode:add_subnode({ title = home_team })
     local away_feed_node = parentNode:add_subnode({ title = away_team })
 
-    local ipad = game.children_map["streams"][1].children_map["ipad"][1]
+    local streams = game.children_map["streams"]
+    if (streams ~= nil) then
+        local ipad = streams[1].children_map["ipad"][1]
 
-    local home = ipad.children_map["home"][1]
-    local away = ipad.children_map["away"][1]
+        local home = ipad.children_map["home"][1]
+        local away = ipad.children_map["away"][1]
 
-    addNodeForGameOpponent(home_feed_node, home)
-    addNodeForGameOpponent(away_feed_node, away)
+        addNodeForGameOpponent(home_feed_node, home)
+        addNodeForGameOpponent(away_feed_node, away)
+    else
+        home_feed_node:add_subnode({title = "No stream available yet."})
+        away_feed_node:add_subnode({title = "No stream available yet."})
+    end
 
 end
 
