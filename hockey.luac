@@ -198,11 +198,19 @@ function addNodeForGame(parentNode, game, home_team, away_team)
     if (streams ~= nil) then
         local ipad = streams[1].children_map["ipad"][1]
 
-        local home = ipad.children_map["home"][1]
-        local away = ipad.children_map["away"][1]
+        local home = ipad.children_map["home"]
+        local away = ipad.children_map["away"]
 
-        addNodeForGameOpponent(home_feed_node, home)
-        addNodeForGameOpponent(away_feed_node, away)
+        if (home ~= nil) then
+            addNodeForGameOpponent(home_feed_node, home[1])
+        else
+            home_feed_node:add_subnode({title = "No stream available yet."})
+        end
+        if (away ~= nil) then
+            addNodeForGameOpponent(away_feed_node, away[1])
+        else
+            away_feed_node:add_subnode({title = "No stream available yet."})
+        end
     else
         home_feed_node:add_subnode({title = "No stream available yet."})
         away_feed_node:add_subnode({title = "No stream available yet."})
