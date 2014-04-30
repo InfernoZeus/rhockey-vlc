@@ -15,10 +15,13 @@ MILITARY_TIME=true
 SHOW_LOCAL_TIME=true
 
 API_USERNAME="rhockeyvlc"
-USER_AGENT="PS4 libhttp/1.62 (PlayStation 4)"
---Alternative User-Agents:
--- USER_AGENT="Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.2; Trident/6.0; Xbox; Xbox One)"
 -- USER_AGENT="iTunes-AppleTV/4.1"
+
+USER_AGENT="PS4 libhttp/1.62"
+
+--Alternative User-Agents:
+-- Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.2; Trident/6.0; Xbox; Xbox One)
+-- PS4 libhttp/1.62 (PlayStation 4)
 
 function descriptor()
     return { title="/r/hockey" }
@@ -98,17 +101,19 @@ local function set_time_display_format(diff)
 end
 
 local function convert_game_time_string_to_date(game_time)
-    _,_,y,m,d,h,M,period=string.find(game_time, "(%d+)-(%d+)-(%d+) (%d+):(%d+) ([ap]m)")
-    if (period == "pm" and h ~= "12") then
-        h = h + 12
-    end
+
+    _,_,m,d,y,h,M,s=string.find(game_time, "(%d+)/(%d+)/(%d+) (%d+):(%d+):(%d+)")
+
     return string.format("%d-%d-%d %d:%d:%d", y, m, d, h, M, 0)
 end
+
 
 function main()
     local et_diff = get_et_diff()
     set_time_display_format(et_diff)
-    local games = simplexml.parse_url("http://breadwinka.com/get_games.php?client=nhl&playerclient=hop")
+
+    local dd = os.date('%Y%m%d')
+    local games = simplexml.parse_url("http://feeds.cdnak.neulion.com/fs/nhl/mobile/feeds/data/"..dd..".xml")
     local test_games = {}
 
     if table.getn(games.children) == 0 then
@@ -117,9 +122,13 @@ function main()
     end
 
     for _, game in ipairs( games.children ) do
+
         if(game.name == "game") then
+
             simplexml.add_name_maps( game )
+
             local game_date, home_team, away_team, title = getInfoForGame(game, et_diff)
+
             if string.find(home_team,"^T%d+$") or string.find (away_team,"^T%d+$") then
                 table.insert(test_games, game)
             else
@@ -140,41 +149,69 @@ function main()
 end
 
 function getInfoForGame(game, et_diff)
-    local game_date = convert_game_time_string_to_date(game.attributes["game_date"])
+
+    local game_date = convert_game_time_string_to_date(""..game.children_map["eastern-start-time"][1].children[1])
     local local_game_date = convert_to_local(game_date, et_diff)
-    local home_team = full_name(game.children_map['home_team'][1].children[1])
-    local away_team = full_name(game.children_map['away_team'][1].children[1])
+    local home_team = full_name(""..game.children_map['home-team'][1].children_map["team-abbreviation"][1].children[1])
+    local away_team = full_name(""..game.children_map['away-team'][1].children_map["team-abbreviation"][1].children[1])
     local title = local_game_date .. " - " .. away_team .. " @ " .. home_team
+
     return local_game_date, home_team, away_team, title
 end
 
-function addNodeForGame(parentNode, game, home_team, away_team)
+function addNodeForGameOpponentType(parentNode, node, suffix)
     local quality = {400, 800, 1200, 1600, 2400, 3000, 4500}
-    for _, ass in ipairs(game.children_map['assignments'][1].children) do
-        local feed = ass.attributes["feed_display_name"]
-        local feed_title = home_team
-        if(feed == "away") then
-            feed_title = away_team
-        end
-        local feed_node = parentNode:add_subnode({ title = feed_title })
-        local ipad = ass.children_map['ipad_url'][1].children[1]
-        if(ipad ~= nil and ipad ~= "nil") then
-            for _, q in ipairs(quality) do
-                local url = string.gsub(ipad, "ipad", q)
-                feed_node:add_subitem({
-                    path = url,
-                    title = q .. ' kbps',
-                    options = {
-                        "http-user-agent=" .. USER_AGENT
-                    }
-                })
-            end
-        else
-            feed_node:add_subnode({
-                title = "No stream available yet."
+
+    if (node ~= nil) then
+        for _, q in ipairs(quality) do
+            local url = string.gsub(node, "ipad", q)
+            parentNode:add_subitem({
+                path = url,
+                title = q .. ' kbps ' .. suffix,
+                options = {
+                    "http-user-agent=" .. USER_AGENT
+                }
             })
         end
     end
+end
+
+function addNodeForGameOpponent(parentNode, node)
+
+    local has_feed = false
+
+    if (node.children_map["live"] ~= nil) then
+        addNodeForGameOpponentType(parentNode, node.children_map["live"][1].children[1], "Live")
+        has_feed = true
+    end
+
+    if (node.children_map["vod-condensed"] ~= nil) then
+        addNodeForGameOpponentType(parentNode, node.children_map["vod-condensed"][1].children[1], "Condensed")
+        has_feed = true
+    end
+    if (node.children_map["vod-continuous"] ~= nil) then
+        local url = string.gsub(node.children_map["vod-condensed"][1].children[1], "condensed", "continuous")
+        addNodeForGameOpponentType(parentNode, url, "Continuous")
+        has_feed = true
+    end
+    if (not has_feed) then
+        parentNode:add_subnode({title = "No stream available yet."})
+    end
+end
+
+function addNodeForGame(parentNode, game, home_team, away_team)
+
+    local home_feed_node = parentNode:add_subnode({ title = home_team })
+    local away_feed_node = parentNode:add_subnode({ title = away_team })
+
+    local ipad = game.children_map["streams"][1].children_map["ipad"][1]
+
+    local home = ipad.children_map["home"][1]
+    local away = ipad.children_map["away"][1]
+
+    addNodeForGameOpponent(home_feed_node, home)
+    addNodeForGameOpponent(away_feed_node, away)
+
 end
 
 function full_name(abr)
