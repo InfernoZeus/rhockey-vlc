@@ -111,7 +111,7 @@ function main()
     local games = simplexml.parse_url("http://breadwinka.com/get_games.php?client=nhl&playerclient=hop")
     local test_games = {}
 
-    if table.getn(games.children) == 0 then
+    if #(games.children) == 0 then
         vlc.sd.add_node({path="", title="No games today."})
         return
     end
@@ -129,7 +129,7 @@ function main()
         end
     end
 
-    if table.getn(test_games) > 0 then
+    if #(test_games) > 0 then
         local test_node = vlc.sd.add_node( { path = "", title = "Test Streams" } )
         for _, game in ipairs(test_games) do
             local game_date, home_team, away_team, title = getInfoForGame(game, et_diff)
