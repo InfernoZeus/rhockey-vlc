@@ -197,6 +197,15 @@ function add_node_for_game_team(parentNode, node)
 
 end
 
+local function add_missing_feed_node(parent_node, game)
+    local game_state = game.children_map["game-state"][1].children[1]
+    if string.find(game_state, "FINAL") ~= nil then
+        parent_node:add_subnode({title = "Game has finished. No replay or highlights available yet."})
+    else
+        parent_node:add_subnode({title = "No stream available yet."})
+    end
+end
+
 function add_node_for_game(game, home_team, away_team, title)
 
     local parentNode = vlc.sd.add_node( { path = "", title = title } )
@@ -213,16 +222,16 @@ function add_node_for_game(game, home_team, away_team, title)
         if (home ~= nil) then
             add_node_for_game_team(home_feed_node, home[1])
         else
-            home_feed_node:add_subnode({title = "No stream available yet."})
+            add_missing_feed_node(home_feed_node, game)
         end
         if (away ~= nil) then
             add_node_for_game_team(away_feed_node, away[1])
         else
-            away_feed_node:add_subnode({title = "No stream available yet."})
+            add_missing_feed_node(away_feed_node, game)
         end
     else
-        home_feed_node:add_subnode({title = "No stream available yet."})
-        away_feed_node:add_subnode({title = "No stream available yet."})
+        add_missing_feed_node(home_feed_node, game)
+        add_missing_feed_node(away_feed_node, game)
     end
 
 end
