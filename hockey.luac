@@ -98,17 +98,30 @@ local function set_time_display_format(diff)
 end
 
 local function convert_game_time_string_to_date(game_time)
-    _,_,y,m,d,h,M,period=string.find(game_time, "(%d+)-(%d+)-(%d+) (%d+):(%d+) ([ap]m)")
-    if (period == "pm" and h ~= "12") then
-        h = h + 12
-    end
+
+    _,_,m,d,y,h,M,s=string.find(game_time, "(%d+)/(%d+)/(%d+) (%d+):(%d+):(%d+)")
+
     return string.format("%d-%d-%d %d:%d:%d", y, m, d, h, M, 0)
 end
+
+local function get_feed_date()
+    -- Calculate date for -10:00
+    local timestamp = os.time()
+    -- ! gives GMT time
+    local format = "!%Y%m%d"
+    -- Offset causes date to only switch over at 10am GMT
+    -- which is 5am ET
+    local tzoffset = -36000
+    return os.date(format, timestamp + tzoffset)
+end
+
 
 function main()
     local et_diff = get_et_diff()
     set_time_display_format(et_diff)
-    local games = simplexml.parse_url("http://breadwinka.com/get_games.php?client=nhl&playerclient=hop")
+
+    local games = simplexml.parse_url("http://feeds.cdnak.neulion.com/fs/nhl/mobile/feeds/data/"..get_feed_date()..".xml")
+
     local test_games = {}
 
     if #(games.children) == 0 then
@@ -120,11 +133,11 @@ function main()
         if(game.name == "game") then
             simplexml.add_name_maps( game )
             local game_date, home_team, away_team, title = getInfoForGame(game, et_diff)
+
             if string.find(home_team,"^T%d+$") or string.find (away_team,"^T%d+$") then
                 table.insert(test_games, game)
             else
-                local node = vlc.sd.add_node( { path = "", title = title } )
-                addNodeForGame(node, game, home_team, away_team)
+                add_node_for_game(game, home_team, away_team, title)
             end
         end
     end
@@ -133,48 +146,91 @@ function main()
         local test_node = vlc.sd.add_node( { path = "", title = "Test Streams" } )
         for _, game in ipairs(test_games) do
             local game_date, home_team, away_team, title = getInfoForGame(game, et_diff)
-            node = test_node:add_subnode({ title = title })
-            addNodeForGame(node, game, home_team, away_team)
+            add_node_for_game(game, home_team, away_team, title)
         end
     end
 end
 
 function getInfoForGame(game, et_diff)
-    local game_date = convert_game_time_string_to_date(game.attributes["game_date"])
+
+    local game_date = convert_game_time_string_to_date(""..game.children_map["eastern-start-time"][1].children[1])
     local local_game_date = convert_to_local(game_date, et_diff)
-    local home_team = full_name(game.children_map['home_team'][1].children[1])
-    local away_team = full_name(game.children_map['away_team'][1].children[1])
+    local home_team = full_name(""..game.children_map['home-team'][1].children_map["team-abbreviation"][1].children[1])
+    local away_team = full_name(""..game.children_map['away-team'][1].children_map["team-abbreviation"][1].children[1])
     local title = local_game_date .. " - " .. away_team .. " @ " .. home_team
+
     return local_game_date, home_team, away_team, title
 end
 
-function addNodeForGame(parentNode, game, home_team, away_team)
-    local quality = {400, 800, 1200, 1600, 2400, 3000, 4500}
-    for _, ass in ipairs(game.children_map['assignments'][1].children) do
-        local feed = ass.attributes["feed_display_name"]
-        local feed_title = home_team
-        if(feed == "away") then
-            feed_title = away_team
-        end
-        local feed_node = parentNode:add_subnode({ title = feed_title })
-        local ipad = ass.children_map['ipad_url'][1].children[1]
-        if(ipad ~= nil and ipad ~= "nil") then
-            for _, q in ipairs(quality) do
-                local url = string.gsub(ipad, "ipad", q)
-                feed_node:add_subitem({
-                    path = url,
-                    title = q .. ' kbps',
-                    options = {
-                        "http-user-agent=" .. USER_AGENT
-                    }
-                })
-            end
-        else
-            feed_node:add_subnode({
-                title = "No stream available yet."
+function add_node_for_game_team_type(parentNode, node, prefix)
+    local quality = {400, 800, 1200, 1600, 3000, 4500}
+
+    if (node ~= nil) then
+        for _, q in ipairs(quality) do
+            local url = string.gsub(node, "ipad", q)
+            parentNode:add_subitem({
+                path = url,
+                title = prefix .. ' - ' .. q .. ' kbps ',
+                options = {
+                    "http-user-agent=" .. USER_AGENT
+                }
             })
         end
     end
+end
+
+function add_node_for_game_team(parentNode, node)
+    if (node.children_map["live"] ~= nil) then
+        add_node_for_game_team_type(parentNode, node.children_map["live"][1].children[1], "Live")
+    end
+
+    if (node.children_map["vod-condensed"] ~= nil) then
+        add_node_for_game_team_type(parentNode, node.children_map["vod-condensed"][1].children[1], "Condensed VOD")
+    end
+    if (node.children_map["vod-continuous"] ~= nil) then
+        local url = string.gsub(node.children_map["vod-condensed"][1].children[1], "condensed", "continuous")
+        add_node_for_game_team_type(parentNode, url, "Continuous Feed")
+    end
+
+end
+
+local function add_missing_feed_node(parent_node, game)
+    local game_state = game.children_map["game-state"][1].children[1]
+    if string.find(game_state, "FINAL") ~= nil then
+        parent_node:add_subnode({title = "Game has finished. No replay or highlights available yet."})
+    else
+        parent_node:add_subnode({title = "No stream available yet."})
+    end
+end
+
+function add_node_for_game(game, home_team, away_team, title)
+
+    local parentNode = vlc.sd.add_node( { path = "", title = title } )
+    local home_feed_node = parentNode:add_subnode({ title = home_team })
+    local away_feed_node = parentNode:add_subnode({ title = away_team })
+
+    local streams = game.children_map["streams"]
+    if (streams ~= nil) then
+        local ipad = streams[1].children_map["ipad"][1]
+
+        local home = ipad.children_map["home"]
+        local away = ipad.children_map["away"]
+
+        if (home ~= nil) then
+            add_node_for_game_team(home_feed_node, home[1])
+        else
+            add_missing_feed_node(home_feed_node, game)
+        end
+        if (away ~= nil) then
+            add_node_for_game_team(away_feed_node, away[1])
+        else
+            add_missing_feed_node(away_feed_node, game)
+        end
+    else
+        add_missing_feed_node(home_feed_node, game)
+        add_missing_feed_node(away_feed_node, game)
+    end
+
 end
 
 function full_name(abr)
