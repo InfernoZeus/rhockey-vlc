@@ -165,7 +165,7 @@ function getInfoForGame(game, et_diff)
     return local_game_date, home_team, away_team, title
 end
 
-function addNodeForGameOpponentType(parentNode, node, suffix)
+function add_node_for_game_team_type(parentNode, node, prefix)
     local quality = {400, 800, 1200, 1600, 2400, 3000, 4500}
 
     if (node ~= nil) then
@@ -173,7 +173,7 @@ function addNodeForGameOpponentType(parentNode, node, suffix)
             local url = string.gsub(node, "ipad", q)
             parentNode:add_subitem({
                 path = url,
-                title = q .. ' kbps ' .. suffix,
+                title = prefix .. ' - ' .. q .. ' kbps ',
                 options = {
                     "http-user-agent=" .. USER_AGENT
                 }
@@ -182,17 +182,17 @@ function addNodeForGameOpponentType(parentNode, node, suffix)
     end
 end
 
-function addNodeForGameOpponent(parentNode, node)
+function add_node_for_game_team(parentNode, node)
     if (node.children_map["live"] ~= nil) then
-        addNodeForGameOpponentType(parentNode, node.children_map["live"][1].children[1], "Live")
+        add_node_for_game_team_type(parentNode, node.children_map["live"][1].children[1], "Live")
     end
 
     if (node.children_map["vod-condensed"] ~= nil) then
-        addNodeForGameOpponentType(parentNode, node.children_map["vod-condensed"][1].children[1], "Condensed")
+        add_node_for_game_team_type(parentNode, node.children_map["vod-condensed"][1].children[1], "Condensed VOD")
     end
     if (node.children_map["vod-continuous"] ~= nil) then
         local url = string.gsub(node.children_map["vod-condensed"][1].children[1], "condensed", "continuous")
-        addNodeForGameOpponentType(parentNode, url, "Continuous")
+        add_node_for_game_team_type(parentNode, url, "Continuous Feed")
     end
 
 end
@@ -211,12 +211,12 @@ function add_node_for_game(game, home_team, away_team, title)
         local away = ipad.children_map["away"]
 
         if (home ~= nil) then
-            addNodeForGameOpponent(home_feed_node, home[1])
+            add_node_for_game_team(home_feed_node, home[1])
         else
             home_feed_node:add_subnode({title = "No stream available yet."})
         end
         if (away ~= nil) then
-            addNodeForGameOpponent(away_feed_node, away[1])
+            add_node_for_game_team(away_feed_node, away[1])
         else
             away_feed_node:add_subnode({title = "No stream available yet."})
         end
