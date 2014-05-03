@@ -166,7 +166,7 @@ function getInfoForGame(game, et_diff)
 end
 
 function add_node_for_game_team_type(parentNode, node, prefix)
-    local quality = {400, 800, 1200, 1600, 2400, 3000, 4500}
+    local quality = {400, 800, 1200, 1600, 3000, 4500}
 
     if (node ~= nil) then
         for _, q in ipairs(quality) do
