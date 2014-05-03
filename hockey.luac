@@ -196,7 +196,7 @@ end
 
 local function add_missing_feed_node(parent_node, game)
     local game_state = game.children_map["game-state"][1].children[1]
-    if string.find(game_state, "FINAL") ~= nil then
+    if game_state ~= nil and string.find(game_state, "FINAL") ~= nil then
         parent_node:add_subnode({title = "Game has finished. No replay or highlights available yet."})
     else
         parent_node:add_subnode({title = "No stream available yet."})
