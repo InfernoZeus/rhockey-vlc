@@ -107,10 +107,13 @@ local function convert_game_time_string_to_date(game_time)
     return string.format("%d-%d-%d %d:%d:%d", y, m, d, h, M, 0)
 end
 
-function get_feed_date()
+local function get_feed_date()
     -- Calculate date for -10:00
     local timestamp = os.time()
+    -- ! gives GMT time
     local format = "!%Y%m%d"
+    -- Offset causes date to only switch over at 10am GMT
+    -- which is 5am ET
     local tzoffset = -36000
     return os.date(format, timestamp + tzoffset)
 end
