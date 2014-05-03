@@ -140,8 +140,7 @@ function main()
             if string.find(home_team,"^T%d+$") or string.find (away_team,"^T%d+$") then
                 table.insert(test_games, game)
             else
-                local node = vlc.sd.add_node( { path = "", title = title } )
-                addNodeForGame(node, game, home_team, away_team)
+                add_node_for_game(game, home_team, away_team, title)
             end
         end
     end
@@ -150,8 +149,7 @@ function main()
         local test_node = vlc.sd.add_node( { path = "", title = "Test Streams" } )
         for _, game in ipairs(test_games) do
             local game_date, home_team, away_team, title = getInfoForGame(game, et_diff)
-            node = test_node:add_subnode({ title = title })
-            addNodeForGame(node, game, home_team, away_team)
+            add_node_for_game(game, home_team, away_team, title)
         end
     end
 end
@@ -199,8 +197,9 @@ function addNodeForGameOpponent(parentNode, node)
 
 end
 
-function addNodeForGame(parentNode, game, home_team, away_team)
+function add_node_for_game(game, home_team, away_team, title)
 
+    local parentNode = vlc.sd.add_node( { path = "", title = title } )
     local home_feed_node = parentNode:add_subnode({ title = home_team })
     local away_feed_node = parentNode:add_subnode({ title = away_team })
 
